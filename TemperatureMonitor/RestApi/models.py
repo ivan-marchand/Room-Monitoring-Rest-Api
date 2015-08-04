@@ -46,6 +46,24 @@ class Room(models.Model):
 
         return aJsonDoc
 
+class IRCommand(models.Model):
+    name = models.CharField(max_length=20)
+    room = models.ForeignKey('Room')
+    protocol = models.CharField(max_length=20)
+    hexCode = models.CharField(max_length=16)
+    nbBits = models.IntegerField()
+
+    def __str__(self):
+        return "%s-%s" % (self.room.name, self.name)
+
+    def send(self):
+        url = "http://%s:%s/arduino/sendIRCommand/%s/%s/%i" % (self.room.server.host, self.room.server.port, self.protocol, self.hexCode, self.nbBits)
+
+        h = httplib2.Http(".cache")
+        resp, content = h.request(url)
+        
+        result = json.loads(content)
+        return 'error' not in result
 
 class Config(models.Model):
     key = models.CharField(max_length=20, unique=True)
