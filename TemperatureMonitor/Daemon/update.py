@@ -9,7 +9,7 @@ from TemperatureMonitor.RestApi.models import Room, Config
 from elasticsearch import Elasticsearch
 
 # Init es connection
-es = Elasticsearch([Config.get('ElasticSearchUrl')],port=80)
+es = Elasticsearch([Config.get('ElasticSearchHost')],port=int(Config.get('ElasticSearchPort')))
 
 for aRoom in Room.objects.all():
     if aRoom.server:
