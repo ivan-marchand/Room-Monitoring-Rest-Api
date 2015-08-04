@@ -1,5 +1,8 @@
 from django.contrib import admin
 from django.db import models
+import urllib, httplib2
+import json
+from datetime import datetime
 
 class Server(models.Model):
     name = models.CharField(max_length=20, unique=True)
@@ -19,6 +22,32 @@ class Room(models.Model):
 
     def __str__(self):              # __unicode__ on Python 2
         return self.name
+
+    def getTemperatureFromServer(self):
+        url = "http://%s:%s/arduino/getTemp/F" % (self.server.host, self.server.port)
+
+        h = httplib2.Http(".cache")
+        resp, content = h.request(url)
+
+        return json.loads(content)
+
+    def getTemperature(self, simulateRoom=False):
+        aJsonDoc = dict()
+        # Timestamp (on server time zone)
+        now = datetime.now().replace(microsecond=0)
+        aJsonDoc['timestamp'] = now.isoformat() 
+        # Check if server is defined
+        if self.server:
+            aResult = self.getTemperatureFromServer()
+            if 'temperature' in aResult:
+                aJsonDoc['temperature'] = float(aResult['temperature'])
+            if 'humidity' in aResult:
+                aJsonDoc['humidity'] = float(aResult['humidity'])
+        elif simulateRoom and self.temperature:
+            aJsonDoc['temperature'] = self.temperature
+
+        return aJsonDoc
+
 admin.site.register(Room)
 
 class Config(models.Model):
@@ -27,13 +56,12 @@ class Config(models.Model):
 
     @staticmethod
     def get(key):
-      aConfigs = Config.objects.filter(key=key)
-      if aConfigs:
-          return aConfigs[0].value
-      return None
+        aConfigs = Config.objects.filter(key=key)
+        if aConfigs:
+                return aConfigs[0].value
+        return None
 
     def __str__(self):              # __unicode__ on Python 2
         return self.key
-    name = models.CharField(max_length=20, unique=True)
 
 admin.site.register(Config)
