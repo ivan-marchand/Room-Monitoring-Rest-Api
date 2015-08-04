@@ -1,4 +1,3 @@
-from django.contrib import admin
 from django.db import models
 import urllib, httplib2
 import json
@@ -11,7 +10,6 @@ class Server(models.Model):
 
     def __str__(self):              # __unicode__ on Python 2
         return self.name
-admin.site.register(Server)
 
 class Room(models.Model):
     name = models.CharField(max_length=20, unique=True)
@@ -48,7 +46,6 @@ class Room(models.Model):
 
         return aJsonDoc
 
-admin.site.register(Room)
 
 class Config(models.Model):
     key = models.CharField(max_length=20, unique=True)
@@ -64,4 +61,3 @@ class Config(models.Model):
     def __str__(self):              # __unicode__ on Python 2
         return self.key
 
-admin.site.register(Config)
