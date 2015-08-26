@@ -82,13 +82,17 @@ class IRCommand(models.Model):
         return "%s-%s" % (self.room.name, self.name)
 
     def send(self):
-        url = "http://%s:%s/arduino/sendIRCommand/%s/%s/%i" % (self.room.server.host, self.room.server.port, self.protocol, self.hexCode, self.nbBits)
+        # Arduino Yun
+        if self.server.type == 'A':
+            url = "http://%s:%s/arduino/sendIRCommand/%s/%s/%i" % (self.room.server.yun_host, self.room.server.yun_port, self.protocol, self.hexCode, self.nbBits)
 
-        h = httplib2.Http(".cache")
-        resp, content = h.request(url)
+            h = httplib2.Http(".cache")
+            resp, content = h.request(url)
         
-        result = json.loads(content)
-        return 'error' not in result
+            result = json.loads(content)
+            return 'error' not in result
+
+        return False
 
 class Config(models.Model):
     key = models.CharField(max_length=20, unique=True)
