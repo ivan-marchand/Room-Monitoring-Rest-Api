@@ -83,7 +83,7 @@ class IRCommand(models.Model):
 
     def send(self):
         # Arduino Yun
-        if self.server.type == 'A':
+        if self.room.server.type == 'A':
             url = "http://%s:%s/arduino/sendIRCommand/%s/%s/%i" % (self.room.server.yun_host, self.room.server.yun_port, self.protocol, self.hexCode, self.nbBits)
 
             h = httplib2.Http(".cache")
