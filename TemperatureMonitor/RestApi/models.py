@@ -45,7 +45,6 @@ class Room(models.Model):
             resp, content = h.request(url)
 
             # Decode Spark Reply
-            print content
             aContentJson = json.loads(content)
             aResult = dict()
             aResult['temperature'], aResult['humidity'] = aContentJson['result'].split(':')
@@ -91,6 +90,17 @@ class IRCommand(models.Model):
         
             result = json.loads(content)
             return 'error' not in result
+        # Spark Core
+        elif self.room.server.type == 'S':
+            url = "https://api.particle.io/v1/devices/%s/sendIR" % (self.room.server.spark_deviceId)
+            h = httplib2.Http(".cache")
+            headers = {'Content-type': 'application/x-www-form-urlencoded'}
+            data = dict(access_token=self.room.server.spark_accessToken, args=self.hexCode)
+            resp, content = h.request(url, "POST", headers=headers, body=urllib.urlencode(data))
+
+            # Decode Spark Reply
+            result = json.loads(content)
+            return 'return_value' in result and result['return_value'] != -1
 
         return False
 
