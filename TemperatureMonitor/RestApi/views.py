@@ -7,6 +7,7 @@ from TemperatureMonitor import settings
 import json
 import re
 import base64
+import threading
 
 def login(request, jsonDoc):
     # Only check login in prod
@@ -29,6 +30,40 @@ def login(request, jsonDoc):
     else:
         jsonDoc['error'] = "The username and password were incorrect."
     return success
+
+# Function used for multi threading
+def GetTemperature(s, room, result):
+    aRoomJsonDoc = dict()
+    aRoomJsonDoc['room'] = room.name
+    aRoomJsonDoc.update(room.getTemperature())
+    # Ensure no one else is accessing the list
+    s.acquire()
+    result.append(aRoomJsonDoc)
+    s.release()
+    return
+
+def getRooms(request):
+    aJsonDoc = []
+
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    # Use semaphore to make sure that there is no concurrent access to aJsonDoc
+    s = threading.Semaphore()
+
+    # Start one thread by room
+    threads = []
+    for aRoom in models.Room.objects.all():
+        t = threading.Thread(target=GetTemperature, args=(s, aRoom, aJsonDoc, ))
+        t.start()
+        threads.append(t)
+        
+    # Wait for completion
+    for t in threads:
+        t.join()
+
+    return HttpResponse(json.dumps(aJsonDoc))
 
 def getTemperature(request, room):
     aJsonDoc = dict()
