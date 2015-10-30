@@ -32,10 +32,27 @@ def login(request, jsonDoc):
     return success
 
 # Function used for multi threading
-def GetTemperature(s, room, result):
+def GetRoom(s, room, result):
     aRoomJsonDoc = dict()
     aRoomJsonDoc['room'] = room.name
     aRoomJsonDoc.update(room.getTemperature())
+    
+    # Get list of device in the room
+    aRoomJsonDoc['devices'] = []
+    for aDevice in models.Device.objects.filter(room = room, actif = True):
+        aDeviceJson = dict()
+        aDeviceJson['name'] = aDevice.name
+        aDeviceJson['type'] = aDevice.type
+        aDeviceJson['commands'] = []
+        # Get list of commands for this device
+        for aCommand in models.IRCommand.objects.filter(device = aDevice):
+            aCommandJson = dict()
+            aCommandJson['name'] = aCommand.name
+            aCommandJson['text'] = aCommand.text
+            aCommandJson['type'] = "IR"
+            aDeviceJson['commands'].append(aCommandJson)
+        aRoomJsonDoc['devices'].append(aDeviceJson)
+
     # Ensure no one else is accessing the list
     s.acquire()
     result.append(aRoomJsonDoc)
@@ -55,7 +72,7 @@ def getRooms(request):
     # Start one thread by room
     threads = []
     for aRoom in models.Room.objects.all():
-        t = threading.Thread(target=GetTemperature, args=(s, aRoom, aJsonDoc, ))
+        t = threading.Thread(target=GetRoom, args=(s, aRoom, aJsonDoc, ))
         t.start()
         threads.append(t)
         
@@ -80,49 +97,20 @@ def getTemperature(request, room):
         aJsonDoc.update(aRooms[0].getTemperature())
     return HttpResponse(json.dumps(aJsonDoc))
 
-def setTempThreshold(request, room, type, temperature):
+def sendIRCommand(request, device, command):
     aJsonDoc = dict()
     # Logged in ?
     if not login(request, aJsonDoc):
         return HttpResponse(json.dumps(aJsonDoc))
 
-    aJsonDoc['room'] = room
-    # Check if room exists
-    aRooms = models.Room.objects.filter(name=room)
-    if not aRooms:
-        aJsonDoc['error'] = "Room not found"
-    else:
-        aRoom = aRooms[0]
-        if type == 'high':
-            aRoom.high_threshold = int(temperature)
-            aRoom.save()
-            aJsonDoc['result'] = "Success"
-        elif type == 'low':
-            aRoom.low_threshold = int(temperature)
-            aRoom.save()
-            aJsonDoc['result'] = "Success"
-        else:
-            aJsonDoc['error'] = "Unknown type : %s" % type
-    # Success ?
-    if 'result' not in aJsonDoc:
-        aJsonDoc['result'] = "Failure"
-
-    return HttpResponse(json.dumps(aJsonDoc))
-
-def sendIRCommand(request, room, command):
-    aJsonDoc = dict()
-    # Logged in ?
-    if not login(request, aJsonDoc):
-        return HttpResponse(json.dumps(aJsonDoc))
-
-    aJsonDoc['room'] = room
+    aJsonDoc['device'] = device
     aJsonDoc['command'] = command
     # Check if room exists
-    aRooms = models.Room.objects.filter(name=room)
-    if not aRooms:
-        aJsonDoc['error'] = "Room not found"
+    aDevices = models.Device.objects.filter(name=device)
+    if not aDevices:
+        aJsonDoc['error'] = "Device not found"
     else:
-        aCommands = models.IRCommand.objects.filter(room=aRooms[0],name=command)
+        aCommands = models.IRCommand.objects.filter(device=aDevices[0], name=command)
         if not aCommands:
             aJsonDoc['error'] = "Command not found"
         else:
