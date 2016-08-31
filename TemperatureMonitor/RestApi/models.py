@@ -1,22 +1,55 @@
 from django.db import models
-import urllib, httplib2
-import json
 from datetime import datetime
+from django.utils import timezone
+from itertools import repeat
+from django.db.models.fields import BooleanField
+from django.template.defaultfilters import default
+from TemperatureMonitor.plugins.loader import ServerPlugin
 
 
 class Server(models.Model):
-    TYPES = (
-        ('A', 'Arduino Yun'),
-        ('S', 'Spark Core'),
-    )
     name = models.CharField(max_length=20, unique=True)
-    type = models.CharField(max_length=1, choices=TYPES)
+    type = models.CharField(max_length=1, choices=ServerPlugin.GetTypes())
+
+    @staticmethod
+    def Get(name, type):
+        aServers = Server.objects.filter(name=name, type=type)
+        if len(aServers) > 0:
+            return aServers[0]
+        return None
+    
+    @staticmethod
+    def GetById(id):
+        aServers = Server.objects.filter(id=id)
+        if len(aServers) > 0:
+            return aServers[0]
+        return None
 
     def getConfig(self, key):
         aConfigs = ServerConfig.objects.filter(server = self, key = key)
         if len(aConfigs):
             return aConfigs[0].value
         return None
+
+    def addConfig(self, key, value):
+        aConfig = ServerConfig(server = self, key = key, value=value)
+        aConfig.save()
+
+    def cleanConfig(self):
+        for aConfig in ServerConfig.objects.filter(server=self):
+            aConfig.delete()
+
+    def getAsJson(self, getConfig):
+        aJson = dict()
+        aJson['name'] = self.name
+        aJson['type'] = self.type
+        aJson['id'] = self.id
+        
+        if getConfig:
+            aJson['config'] = dict()
+            for aConfig in ServerConfig.objects.filter(server=self):
+                aJson['config'][aConfig.key] = aConfig.value
+        return aJson
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.get_type_display())
@@ -37,26 +70,15 @@ class Room(models.Model):
         return self.name
 
     def getTemperatureFromServer(self):
-        # Arduino Yun
-        if self.server.type == 'A':
-            url = "http://%s:%s/arduino/getTemp/F" % (self.server.getConfig('host'), self.server.getConfig('port'))
-
-            h = httplib2.Http(".cache")
-            resp, content = h.request(url)
-
-            return json.loads(content)
-        # Spark Core
-        elif self.server.type == 'S':
-            url = "https://api.particle.io/v1/devices/%s/getTempF?access_token=%s" % (self.server.getConfig('deviceId'), self.server.getConfig('accessToken'))
-            h = httplib2.Http(".cache")
-            resp, content = h.request(url)
-
-            # Decode Spark Reply
-            aContentJson = json.loads(content)
-            aResult = dict()
-            aResult['temperature'], aResult['humidity'] = aContentJson['result'].split(':')
-            return aResult
-        return {'error' : "Unknown server"}
+        aResult = dict()
+        serverPlugin = ServerPlugin.Get(self.server)
+        if serverPlugin:
+            if serverPlugin.hasService('getTemperature'):
+                aResult = serverPlugin.getTemperature()
+        else:
+            aResult['error'] = "Unknown server type %s" % self.server.type
+        
+        return aResult
 
     def getTemperature(self, simulateRoom=False):
         aJsonDoc = dict()
@@ -82,7 +104,7 @@ class Device(models.Model):
     room = models.ForeignKey('Room')
     name = models.CharField(max_length=30, unique=True)
     type = models.CharField(max_length=1, choices=TYPES)
-    actif = models.BooleanField()
+    actif = models.BooleanField(default=False)
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.get_type_display())
@@ -94,33 +116,34 @@ class IRCommand(models.Model):
     protocol = models.CharField(max_length=20)
     hexCode = models.CharField(max_length=16)
     nbBits = models.IntegerField()
-
+    repeat = models.IntegerField(default=1)
+    minWaitBetweenRepeat = models.IntegerField(null=True, blank=True)
+    lastSend = models.DateTimeField(null=True, blank=True)
+    
     def __str__(self):
         return "%s-%s" % (self.device.name, self.name)
 
     def send(self):
-        # Arduino Yun
-        if self.device.room.server.type == 'A':
-            url = "http://%s:%s/arduino/sendIRCommand/%s/%s/%i" % (self.device.room.server.getConfig('host'), self.device.room.server.getConfig('port'), self.protocol, self.hexCode, self.nbBits)
+        aReturnCode = False
+        # Repeat?
+        repeat = 0
+        if self.repeat:
+            if self.lastSend and self.minWaitBetweenRepeat:
+                if self.lastSend.toordinal() + self.minWaitBetweenRepeat > datetime.now().toordinal():
+                    repeat = self.repeat
+            else:
+                repeat = self.repeat
 
-            h = httplib2.Http(".cache")
-            resp, content = h.request(url)
-        
-            result = json.loads(content)
-            return 'error' not in result
-        # Spark Core
-        elif self.device.room.server.type == 'S':
-            url = "https://api.particle.io/v1/devices/%s/sendIR" % (self.device.room.server.getConfig('deviceId'))
-            h = httplib2.Http(".cache")
-            headers = {'Content-type': 'application/x-www-form-urlencoded'}
-            data = dict(access_token=self.device.room.server.getConfig('accessToken'), args=self.hexCode)
-            resp, content = h.request(url, "POST", headers=headers, body=urllib.urlencode(data))
+        # Call server plugin
+        serverPlugin = ServerPlugin.Get(self.device.room.server)
+        if serverPlugin:
+            if serverPlugin.hasService('sendIRCommand'):
+                aReturnCode = serverPlugin.sendIRCommand(self.protocol, self.hexCode, self.nbBits, repeat)
 
-            # Decode Spark Reply
-            result = json.loads(content)
-            return 'return_value' in result and result['return_value'] != -1
-
-        return False
+        # Update time stamp
+        self.lastSend = timezone.now()
+        self.save()
+        return aReturnCode
 
 class Config(models.Model):
     key = models.CharField(max_length=20, unique=True)

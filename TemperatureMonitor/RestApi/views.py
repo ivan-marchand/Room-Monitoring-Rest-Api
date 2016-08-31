@@ -3,6 +3,7 @@ from django.http import HttpResponse
 from django.contrib.auth import authenticate
 from TemperatureMonitor.RestApi import models
 from TemperatureMonitor import settings
+from TemperatureMonitor.plugins.loader import ServerPlugin
 
 import json
 import re
@@ -122,3 +123,126 @@ def sendIRCommand(request, device, command):
         aJsonDoc['result'] = "Failure"
     return HttpResponse(json.dumps(aJsonDoc))
 
+def getServerTypes(request):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    # Get Server from Db
+    aJsonDoc['types'] = ServerPlugin.GetTypes()
+        
+    return HttpResponse(json.dumps(aJsonDoc))
+
+def getServers(request):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    # Get Server from Db
+    aJsonDoc['servers'] = []
+    for aServer in models.Server.objects.all():
+        aJsonDoc['servers'].append(aServer.getAsJson(True))
+        
+    return HttpResponse(json.dumps(aJsonDoc))
+
+def getServer(request, id):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    # Get Server from Db
+    aServer = models.Server.GetById(int(id))
+    if aServer:
+        aJsonDoc['server'] = aServer.getAsJson(True)
+    else:
+        aJsonDoc['error'] = "Server not found"
+        
+    return HttpResponse(json.dumps(aJsonDoc))
+    
+def updateServer(request, id, name, type):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    # Decode config (if any)
+    aServerConfig = None
+    if len(request.body) > 0:
+        try:
+            aPostedJson = json.loads(request.body)
+            if 'config' in aPostedJson:
+                aServerConfig = aPostedJson['config']
+        except:
+            aJsonDoc['error'] = "Unable to decode server config"
+    
+    # Check if server already exists
+    aServer = models.Server.GetById(int(id))
+    if not aServer:
+        aJsonDoc['error'] = "Server not found"
+    
+    if 'error' not in aJsonDoc:
+        # Update the server
+        aServer.name = name
+        aServer.type = type
+        aServer.save()
+        
+        # Add Server config if any
+        aServer.cleanConfig()
+        if aServerConfig:
+            for key, value in aServerConfig.items():
+                aServer.addConfig(key, value)
+
+        aJsonDoc['server'] = aServer.getAsJson(False)
+    return HttpResponse(json.dumps(aJsonDoc))
+
+def addServer(request, name, type):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    # Decode config (if any)
+    aServerConfig = None
+    if len(request.body) > 0:
+        try:
+            aPostedJson = json.loads(request.body)
+            if 'config' in aPostedJson:
+                aServerConfig = aPostedJson['config']
+        except:
+            aJsonDoc['error'] = "Unable to decode server config"
+    
+    # Check if server already exists
+    if models.Server.Get(name=name, type=type):
+        aJsonDoc['error'] = "Server %s already exists" % name
+    
+    if 'error' not in aJsonDoc:
+        # Add the server
+        aServer = models.Server(name=name, type=type)
+        aServer.save()
+        
+        # Add Server config if any
+        if aServerConfig:
+            for key, value in aServerConfig.items():
+                aServer.addConfig(key, value)
+
+        aJsonDoc['server'] = aServer.getAsJson(False)
+    return HttpResponse(json.dumps(aJsonDoc))
+
+def delServer(request, id):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    # Get Server from Db
+    aServer = models.Server.GetById(int(id))
+    if aServer:
+        aJsonDoc['server'] = aServer.getAsJson(False)
+        aServer.delete()
+    else:
+        aJsonDoc['error'] = "Server not found"
+        
+    return HttpResponse(json.dumps(aJsonDoc))
