@@ -4,39 +4,39 @@ from django.utils import timezone
 from itertools import repeat
 from django.db.models.fields import BooleanField
 from django.template.defaultfilters import default
-from TemperatureMonitor.plugins.loader import ServerPlugin
+from TemperatureMonitor.plugins.loader import AbstractPlugin
 
 
-class Server(models.Model):
+class Plugin(models.Model):
     name = models.CharField(max_length=20, unique=True)
-    type = models.CharField(max_length=1, choices=ServerPlugin.GetTypes())
+    type = models.CharField(max_length=1, choices=AbstractPlugin.GetTypes())
 
     @staticmethod
     def Get(name, type):
-        aServers = Server.objects.filter(name=name, type=type)
-        if len(aServers) > 0:
-            return aServers[0]
+        aPlugins = Plugin.objects.filter(name=name, type=type)
+        if len(aPlugins) > 0:
+            return aPlugins[0]
         return None
     
     @staticmethod
     def GetById(id):
-        aServers = Server.objects.filter(id=id)
-        if len(aServers) > 0:
-            return aServers[0]
+        aPlugins = Plugin.objects.filter(id=id)
+        if len(aPlugins) > 0:
+            return aPlugins[0]
         return None
 
     def getConfig(self, key):
-        aConfigs = ServerConfig.objects.filter(server = self, key = key)
+        aConfigs = PluginConfig.objects.filter(plugin = self, key = key)
         if len(aConfigs):
             return aConfigs[0].value
         return None
 
     def addConfig(self, key, value):
-        aConfig = ServerConfig(server = self, key = key, value=value)
+        aConfig = PluginConfig(plugin = self, key = key, value=value)
         aConfig.save()
 
     def cleanConfig(self):
-        for aConfig in ServerConfig.objects.filter(server=self):
+        for aConfig in PluginConfig.objects.filter(plugin=self):
             aConfig.delete()
 
     def getAsJson(self, getConfig):
@@ -47,46 +47,46 @@ class Server(models.Model):
         
         if getConfig:
             aJson['config'] = dict()
-            for aConfig in ServerConfig.objects.filter(server=self):
+            for aConfig in PluginConfig.objects.filter(plugin=self):
                 aJson['config'][aConfig.key] = aConfig.value
         return aJson
 
     def __str__(self):
         return "%s (%s)" % (self.name, self.get_type_display())
 
-class ServerConfig(models.Model):
-    server = models.ForeignKey('Server')
+class PluginConfig(models.Model):
+    plugin = models.ForeignKey('Plugin')
     key = models.CharField(max_length=20)
     value = models.CharField(max_length=200)
 
     def __str__(self):
-        return "%s - %s" % (self.server, self.key)
+        return "%s - %s" % (self.plugin, self.key)
 
 class Room(models.Model):
     name = models.CharField(max_length=20, unique=True)
-    server = models.ForeignKey('Server')
+    plugin = models.ForeignKey('Plugin')
 
     def __str__(self):
         return self.name
 
-    def getTemperatureFromServer(self):
+    def getTemperatureFromPlugin(self):
         aResult = dict()
-        serverPlugin = ServerPlugin.Get(self.server)
-        if serverPlugin:
-            if serverPlugin.hasService('getTemperature'):
-                aResult = serverPlugin.getTemperature()
+        aPlugin = AbstractPlugin.Get(self.plugin)
+        if aPlugin:
+            if aPlugin.hasService('getTemperature'):
+                aResult = aPlugin.getTemperature()
         else:
-            aResult['error'] = "Unknown server type %s" % self.server.type
+            aResult['error'] = "Unknown plugin type %s" % self.plugin.type
         
         return aResult
 
     def getTemperature(self, simulateRoom=False):
         aJsonDoc = dict()
-        # Timestamp (on server time zone)
+        # Timestamp (on plugin time zone)
         now = datetime.now().replace(microsecond=0)
         aJsonDoc['timestamp'] = now.isoformat() 
-        # Check if server is defined
-        aResult = self.getTemperatureFromServer()
+        # Check if plugin is defined
+        aResult = self.getTemperatureFromPlugin()
         if 'temperature' in aResult:
             aJsonDoc['temperature'] = float(aResult['temperature'])
         if 'humidity' in aResult:
@@ -134,11 +134,11 @@ class IRCommand(models.Model):
             else:
                 repeat = self.repeat
 
-        # Call server plugin
-        serverPlugin = ServerPlugin.Get(self.device.room.server)
-        if serverPlugin:
-            if serverPlugin.hasService('sendIRCommand'):
-                aReturnCode = serverPlugin.sendIRCommand(self.protocol, self.hexCode, self.nbBits, repeat)
+        # Call plugin
+        aPlugin = AbstractPlugin.Get(self.device.room.plugin)
+        if aPlugin:
+            if aPlugin.hasService('sendIRCommand'):
+                aReturnCode = aPlugin.sendIRCommand(self.protocol, self.hexCode, self.nbBits, repeat)
 
         # Update time stamp
         self.lastSend = timezone.now()

@@ -1,9 +1,9 @@
 import httplib2
 import json
-from TemperatureMonitor.plugins.loader import ServerPlugin
+from TemperatureMonitor.plugins.loader import AbstractPlugin
 
 # Arduino Yun
-class Yun(ServerPlugin):
+class Yun(AbstractPlugin):
     
     def getTemperature(self):
         url = "http://%s:%s/arduino/getTemp/F" % (self.config.getConfig('host'), self.config.getConfig('port'))
@@ -22,4 +22,7 @@ class Yun(ServerPlugin):
         result = json.loads(content)
         return result and 'error' not in result
 
-ServerPlugin.Register('A', 'Arduino Yun', Yun)
+AbstractPlugin.Register('A', 'Arduino Yun', Yun, {
+    'host' : ("Host", "String", True),
+    'port' : ("Port", "Integer", True),
+    })

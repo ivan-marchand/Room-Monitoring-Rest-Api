@@ -3,16 +3,21 @@ from django.http import HttpResponse
 from django.contrib.auth import authenticate
 from TemperatureMonitor.RestApi import models
 from TemperatureMonitor import settings
-from TemperatureMonitor.plugins.loader import ServerPlugin
+from TemperatureMonitor.plugins.loader import AbstractPlugin
 
 import json
 import re
 import base64
 import threading
 
-def login(request, jsonDoc):
+def testCredential(request):
+    aJsonDoc = dict()
+    # Try to login
+    return HttpResponse(json.dumps({'success': login(request, aJsonDoc, True)}))
+
+def login(request, jsonDoc, force=False):
     # Only check login in prod
-    if settings.DEBUG:
+    if not force and settings.DEBUG:
         return True
     user = None
     success = False
@@ -59,6 +64,22 @@ def GetRoom(s, room, result):
     result.append(aRoomJsonDoc)
     s.release()
     return
+
+def getRoomList(request):
+    aJsonDoc = dict()
+
+    aJsonDoc["action"] = "getRoomList"
+    
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    aRoomList = []
+    for aRoom in models.Room.objects.all():
+        aRoomList.append(aRoom.name)
+    aJsonDoc["room_list"] = aRoomList
+        
+    return HttpResponse(json.dumps(aJsonDoc))
 
 def getRooms(request):
     aJsonDoc = []
@@ -123,126 +144,126 @@ def sendIRCommand(request, device, command):
         aJsonDoc['result'] = "Failure"
     return HttpResponse(json.dumps(aJsonDoc))
 
-def getServerTypes(request):
+def getAvailablePlugins(request):
     aJsonDoc = dict()
     # Logged in ?
     if not login(request, aJsonDoc):
         return HttpResponse(json.dumps(aJsonDoc))
 
-    # Get Server from Db
-    aJsonDoc['types'] = ServerPlugin.GetTypes()
+    # Get Plugin from Db
+    aJsonDoc['types'] = AbstractPlugin.GetAvailablePlugin()
         
     return HttpResponse(json.dumps(aJsonDoc))
 
-def getServers(request):
+def getPlugins(request):
     aJsonDoc = dict()
     # Logged in ?
     if not login(request, aJsonDoc):
         return HttpResponse(json.dumps(aJsonDoc))
 
-    # Get Server from Db
-    aJsonDoc['servers'] = []
-    for aServer in models.Server.objects.all():
-        aJsonDoc['servers'].append(aServer.getAsJson(True))
+    # Get Plugin from Db
+    aJsonDoc['plugins'] = []
+    for aPlugin in models.Plugin.objects.all():
+        aJsonDoc['plugins'].append(aPlugin.getAsJson(True))
         
     return HttpResponse(json.dumps(aJsonDoc))
 
-def getServer(request, id):
+def getPlugin(request, id):
     aJsonDoc = dict()
     # Logged in ?
     if not login(request, aJsonDoc):
         return HttpResponse(json.dumps(aJsonDoc))
 
-    # Get Server from Db
-    aServer = models.Server.GetById(int(id))
-    if aServer:
-        aJsonDoc['server'] = aServer.getAsJson(True)
+    # Get Plugin from Db
+    aPlugin = models.Plugin.GetById(int(id))
+    if aPlugin:
+        aJsonDoc['plugin'] = aPlugin.getAsJson(True)
     else:
-        aJsonDoc['error'] = "Server not found"
+        aJsonDoc['error'] = "Plugin not found"
         
     return HttpResponse(json.dumps(aJsonDoc))
     
-def updateServer(request, id, name, type):
+def updatePlugin(request, id, name, type):
     aJsonDoc = dict()
     # Logged in ?
     if not login(request, aJsonDoc):
         return HttpResponse(json.dumps(aJsonDoc))
 
     # Decode config (if any)
-    aServerConfig = None
+    aPluginConfig = None
     if len(request.body) > 0:
         try:
             aPostedJson = json.loads(request.body)
             if 'config' in aPostedJson:
-                aServerConfig = aPostedJson['config']
+                aPluginConfig = aPostedJson['config']
         except:
-            aJsonDoc['error'] = "Unable to decode server config"
+            aJsonDoc['error'] = "Unable to decode plugin config"
     
-    # Check if server already exists
-    aServer = models.Server.GetById(int(id))
-    if not aServer:
-        aJsonDoc['error'] = "Server not found"
+    # Check if plugin already exists
+    aPlugin = models.Plugin.GetById(int(id))
+    if not aPlugin:
+        aJsonDoc['error'] = "Plugin not found"
     
     if 'error' not in aJsonDoc:
-        # Update the server
-        aServer.name = name
-        aServer.type = type
-        aServer.save()
+        # Update the plugin
+        aPlugin.name = name
+        aPlugin.type = type
+        aPlugin.save()
         
-        # Add Server config if any
-        aServer.cleanConfig()
-        if aServerConfig:
-            for key, value in aServerConfig.items():
-                aServer.addConfig(key, value)
+        # Add Plugin config if any
+        aPlugin.cleanConfig()
+        if aPluginConfig:
+            for key, value in aPluginConfig.items():
+                aPlugin.addConfig(key, value)
 
-        aJsonDoc['server'] = aServer.getAsJson(False)
+        aJsonDoc['plugin'] = aPlugin.getAsJson(False)
     return HttpResponse(json.dumps(aJsonDoc))
 
-def addServer(request, name, type):
+def addPlugin(request, name, type):
     aJsonDoc = dict()
     # Logged in ?
     if not login(request, aJsonDoc):
         return HttpResponse(json.dumps(aJsonDoc))
 
     # Decode config (if any)
-    aServerConfig = None
+    aPluginConfig = None
     if len(request.body) > 0:
         try:
             aPostedJson = json.loads(request.body)
             if 'config' in aPostedJson:
-                aServerConfig = aPostedJson['config']
+                aPluginConfig = aPostedJson['config']
         except:
-            aJsonDoc['error'] = "Unable to decode server config"
+            aJsonDoc['error'] = "Unable to decode plugin config"
     
-    # Check if server already exists
-    if models.Server.Get(name=name, type=type):
-        aJsonDoc['error'] = "Server %s already exists" % name
+    # Check if plugin already exists
+    if models.Plugin.Get(name=name, type=type):
+        aJsonDoc['error'] = "Plugin %s already exists" % name
     
     if 'error' not in aJsonDoc:
-        # Add the server
-        aServer = models.Server(name=name, type=type)
-        aServer.save()
+        # Add the Plugin
+        aPlugin = models.Plugin(name=name, type=type)
+        aPlugin.save()
         
-        # Add Server config if any
-        if aServerConfig:
-            for key, value in aServerConfig.items():
-                aServer.addConfig(key, value)
+        # Add Plugin config if any
+        if aPluginConfig:
+            for key, value in aPluginConfig.items():
+                aPlugin.addConfig(key, value)
 
-        aJsonDoc['server'] = aServer.getAsJson(False)
+        aJsonDoc['plugin'] = aPlugin.getAsJson(False)
     return HttpResponse(json.dumps(aJsonDoc))
 
-def delServer(request, id):
+def delPlugin(request, id):
     aJsonDoc = dict()
     # Logged in ?
     if not login(request, aJsonDoc):
         return HttpResponse(json.dumps(aJsonDoc))
 
-    # Get Server from Db
-    aServer = models.Server.GetById(int(id))
-    if aServer:
-        aJsonDoc['server'] = aServer.getAsJson(False)
-        aServer.delete()
+    # Get Plugin from Db
+    aPlugin = models.Plugin.GetById(int(id))
+    if aPlugin:
+        aJsonDoc['plugin'] = aPlugin.getAsJson(False)
+        aPlugin.delete()
     else:
-        aJsonDoc['error'] = "Server not found"
+        aJsonDoc['error'] = "Plugin not found"
         
     return HttpResponse(json.dumps(aJsonDoc))

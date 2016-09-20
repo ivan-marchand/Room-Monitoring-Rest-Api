@@ -1,10 +1,10 @@
 import json
 import httplib2
 import urllib
-from TemperatureMonitor.plugins.loader import ServerPlugin
+from TemperatureMonitor.plugins.loader import AbstractPlugin
 
 # Spark Core
-class SparkCore(ServerPlugin):
+class SparkCore(AbstractPlugin):
 
     def getTemperature(self):
         url = "https://api.particle.io/v1/devices/%s/getTempF?access_token=%s" % (self.config.getConfig('deviceId'), self.config.getConfig('accessToken'))
@@ -33,4 +33,4 @@ class SparkCore(ServerPlugin):
         result = json.loads(content)
         return 'return_value' in result and result['return_value'] != -1
 
-ServerPlugin.Register('S', 'Spark Core', SparkCore)
+AbstractPlugin.Register('S', 'Spark Core', SparkCore)
