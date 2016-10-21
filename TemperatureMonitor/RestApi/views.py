@@ -9,6 +9,9 @@ import json
 import re
 import base64
 import threading
+import requests
+import traceback
+from wit import Wit
 
 def testCredential(request):
     aJsonDoc = dict()
@@ -267,3 +270,66 @@ def delPlugin(request, id):
         aJsonDoc['error'] = "Plugin not found"
         
     return HttpResponse(json.dumps(aJsonDoc))
+
+
+
+def send(request, response):
+    print request
+    #if 'msg' in response and 'intent' in response['entities'] and response['entities']['intent'][0]['confidence'] > 0.8:
+    #    sendTextMessage(senderId, response['msg'])
+    sendTextMessage(request['context']['senderId'], response['text'])
+
+def getTemperature(request):
+    print request
+    # Check if room exists
+    if 'roomName' in request['entities']:
+        room = request['entities']['roomName'][0]['value']
+        aRooms = models.Room.objects.filter(name=room.lower())
+        if not aRooms:
+            sendTextMessage(request['context']['senderId'], "I don't know this room")
+        else:
+            sendTextMessage(request['context']['senderId'], "Temperature is %.1f F" % aRooms[0].getTemperature()['temperature'])
+
+actions = {
+    'send': send,
+    'getTemperature': getTemperature
+}
+
+client = Wit(access_token=models.Config.get('WitToken'), actions=actions)
+        
+
+def bot(request):
+    try:
+        if 'hub.verify_token' in request.GET:
+            if request.GET['hub.verify_token'] == models.Config.get('FacebookVerifyToken'):
+                if 'hub.challenge' in request.GET:
+                    return HttpResponse(request.GET['hub.challenge'])
+                return HttpResponse("KO")
+        body = json.loads(request.body)
+        print body
+        for entry in body['entry']:
+            for message in entry['messaging']:
+                if 'is_echo' not in message and 'message' in message:
+                    senderId = message['sender']['id']
+                    client.run_actions("session", message['message']['text'], {'senderId': senderId})
+    except Exception, e:
+        traceback.print_exc()
+  
+    return HttpResponse()
+
+def sendTextMessage(recipientId, messageText):
+    messageData = {
+                'recipient': {
+                          'id': recipientId
+                          },
+                'message': {
+                          'text': messageText
+                          }
+                }
+
+    callSendAPI(messageData)
+
+def callSendAPI(messageData):
+    r = requests.post("https://graph.facebook.com/v2.6/me/messages", json=messageData, params={'access_token': models.Config.get('FacebookToken')})
+    print r.status_code, r.reason
+    

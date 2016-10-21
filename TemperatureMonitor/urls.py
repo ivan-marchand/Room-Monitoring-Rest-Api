@@ -19,5 +19,7 @@ urlpatterns = patterns('',
     url(r'^api/v1/update/plugin/(?P<id>\w+)/(?P<name>\w+)/(?P<type>\w)', 'TemperatureMonitor.RestApi.views.updatePlugin', name='updatePlugin'),
     url(r'^api/v1/del/plugin/(?P<id>\d+)', 'TemperatureMonitor.RestApi.views.delPlugin', name='delPlugin'),
 
+    # Bot
+    url(r'^api/v1/bot', 'TemperatureMonitor.RestApi.views.bot', name='bot'),
     url(r'^admin/', include(admin.site.urls)),
 )
