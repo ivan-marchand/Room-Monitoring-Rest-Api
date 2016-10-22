@@ -11,6 +11,7 @@ import base64
 import threading
 import requests
 import traceback
+from fuzzywuzzy import fuzz
 from wit import Wit
 
 def testCredential(request):
@@ -274,28 +275,34 @@ def delPlugin(request, id):
 
 
 def send(request, response):
-    print request
-    #if 'msg' in response and 'intent' in response['entities'] and response['entities']['intent'][0]['confidence'] > 0.8:
-    #    sendTextMessage(senderId, response['msg'])
+    print "Request:", request
+    print "Response:", response
     sendTextMessage(request['context']['senderId'], response['text'])
 
 def getTemperature(request):
     print request
     # Check if room exists
     if 'roomName' in request['entities']:
-        room = request['entities']['roomName'][0]['value']
-        aRooms = models.Room.objects.filter(name=room.lower())
-        if not aRooms:
-            sendTextMessage(request['context']['senderId'], "I don't know this room")
+	aSelectedRoom = None
+        aBestScore = 0
+        for query in request['entities']['roomName']:
+            for aRoom in models.Room.objects.all():
+                aScore = fuzz.partial_ratio(query['value'], aRoom.name)
+                if aScore > aBestScore:
+                    aBestScore = aScore
+                    aSelectedRoom = aRoom
+	if not aSelectedRoom or aBestScore < 70:
+            sendTextMessage(request['context']['senderId'], "I don't know this room \"%s\"" % query['value'])
         else:
-            sendTextMessage(request['context']['senderId'], "Temperature is %.1f F" % aRooms[0].getTemperature()['temperature'])
+            sendTextMessage(request['context']['senderId'], "Temperature in room %s is %.1f F" % (aSelectedRoom.name, aSelectedRoom.getTemperature()['temperature']))
+    else:
+        sendTextMessage(request['context']['senderId'], "Which room?")
 
 actions = {
     'send': send,
     'getTemperature': getTemperature
 }
 
-client = Wit(access_token=models.Config.get('WitToken'), actions=actions)
         
 
 def bot(request):
@@ -311,6 +318,7 @@ def bot(request):
             for message in entry['messaging']:
                 if 'is_echo' not in message and 'message' in message:
                     senderId = message['sender']['id']
+                    client = Wit(access_token=models.Config.get('WitToken'), actions=actions)
                     client.run_actions("session", message['message']['text'], {'senderId': senderId})
     except Exception, e:
         traceback.print_exc()
