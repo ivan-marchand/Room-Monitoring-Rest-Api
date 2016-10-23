@@ -313,29 +313,19 @@ def bot(request):
                     return HttpResponse(request.GET['hub.challenge'])
                 return HttpResponse("KO")
         body = json.loads(request.body)
-        print body
         for entry in body['entry']:
             for message in entry['messaging']:
                 if 'is_echo' not in message and 'message' in message:
                     senderId = message['sender']['id']
                     client = Wit(access_token=models.Config.get('WitToken'), actions=actions)
-                    client.run_actions("session", message['message']['text'], {'senderId': senderId})
+                    client.run_actions("session_%s" % senderId, message['message']['text'], {'senderId': senderId})
     except Exception, e:
         traceback.print_exc()
   
     return HttpResponse()
 
 def sendTextMessage(recipientId, messageText):
-    messageData = {
-                'recipient': {
-                          'id': recipientId
-                          },
-                'message': {
-                          'text': messageText
-                          }
-                }
-
-    callSendAPI(messageData)
+    callSendAPI({'recipient': {'id': recipientId}, 'message': {'text': messageText}})
 
 def callSendAPI(messageData):
     r = requests.post("https://graph.facebook.com/v2.6/me/messages", json=messageData, params={'access_token': models.Config.get('FacebookToken')})

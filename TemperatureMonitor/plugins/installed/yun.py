@@ -7,7 +7,11 @@ class Yun(AbstractPlugin):
     
     def getTemperature(self):
         url = "http://%s:%s/arduino/getTemp/F" % (self.config.getConfig('host'), self.config.getConfig('port'))
+        # Add user/password
+        if self.config.getConfig('username') and self.config.getConfig('password'):
+            url += "?username=%s&password=%s" % (self.config.getConfig('username'), self.config.getConfig('password'))
 
+        print url
         h = httplib2.Http(".cache")
         resp, content = h.request(url)
 
