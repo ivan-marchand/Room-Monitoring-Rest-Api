@@ -305,7 +305,7 @@ actions = {
 
         
 
-def bot(request):
+def facebookBot(request):
     try:
         if 'hub.verify_token' in request.GET:
             if request.GET['hub.verify_token'] == models.Config.get('FacebookVerifyToken'):

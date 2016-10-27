@@ -17,7 +17,7 @@ class OpenWeatherMap(AbstractPlugin):
         # Zip Code
         aZipCode = self.config.getConfig('zip')
         if aZipCode:
-            criteria = "?zip=%s" % aZipCode
+            criteria = "&zip=%s" % aZipCode
         aApiKey = self.config.getConfig('appid')
         if aApiKey:
             url += criteria + "&appid=%s" % aApiKey
