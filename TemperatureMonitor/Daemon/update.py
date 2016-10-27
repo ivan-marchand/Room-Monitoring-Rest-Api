@@ -12,7 +12,7 @@ from elasticsearch import Elasticsearch
 es = Elasticsearch([Config.get('ElasticSearchHost')],port=int(Config.get('ElasticSearchPort')))
 
 for aRoom in Room.objects.all():
-    if aRoom.server:
+    if aRoom.plugin:
         aJsonDoc = dict()
         aJsonDoc['room'] = aRoom.name
         aJsonDoc.update(aRoom.getTemperature())
