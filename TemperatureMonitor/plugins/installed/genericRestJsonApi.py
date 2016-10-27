@@ -9,7 +9,9 @@ class GenericRestJsonApi(AbstractPlugin):
         path = self.config.getConfig('basePath')
         if not path:
             path = ""
-        url = "http://%s:%s/%s/getTemperature/F" % (self.config.getConfig('host'), self.config.getConfig('port'), path)
+	elif not path.endswith('/'):
+            path += '/'
+        url = "http://%s:%s/%sgetTemperature/F" % (self.config.getConfig('host'), self.config.getConfig('port'), path)
         # Add user/password
         if self.config.getConfig('username') and self.config.getConfig('password'):
             url += "?username=%s&password=%s" % (self.config.getConfig('username'), self.config.getConfig('password'))
