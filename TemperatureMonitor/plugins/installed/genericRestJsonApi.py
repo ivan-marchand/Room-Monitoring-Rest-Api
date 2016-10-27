@@ -20,7 +20,7 @@ class GenericRestJsonApi(AbstractPlugin):
 
         return json.loads(content)
 
-AbstractPlugin.Register('G', 'Generic REST Json API', Yun, {
+AbstractPlugin.Register('G', 'Generic REST Json API', GenericRestJsonApi, {
     'host' : ("Host", "String", True),
     'port' : ("Port", "Integer", True),
     })
