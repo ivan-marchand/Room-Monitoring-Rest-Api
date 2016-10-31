@@ -10,7 +10,10 @@ class GenericRestJsonApi(AbstractPlugin):
         basePath = self.config.getConfig('basePath')
         if not basePath:
             basePath = ""
-        url = "http://%s:%s/%s/%s" % (self.config.getConfig('host'), self.config.getConfig('port'), basePath, path)
+        elif not path.endswith('/'):
+            basePath += '/'
+        url = "http://%s:%s/%s%s" % (self.config.getConfig('host'), self.config.getConfig('port'), basePath, path)
+
         # Add user/password
         if self.config.getConfig('username') and self.config.getConfig('password'):
             url += "?username=%s&password=%s" % (self.config.getConfig('username'), self.config.getConfig('password'))
@@ -36,7 +39,7 @@ class GenericRestJsonApi(AbstractPlugin):
             return {"error": "Unknown mode %s" % mode}
             
 
-AbstractPlugin.Register('G', 'Generic REST Json API', Yun, {
+AbstractPlugin.Register('G', 'Generic REST Json API', GenericRestJsonApi, {
     'host' : ("Host", "String", True),
     'port' : ("Port", "Integer", True),
     })
