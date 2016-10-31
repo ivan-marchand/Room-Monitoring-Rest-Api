@@ -12,7 +12,7 @@ def ImportPlugins():
             name, ext = os.path.splitext(item)
             if ext == ".py":
                 importlib.import_module("TemperatureMonitor.plugins.installed.%s" % name)
-                
+
 class AbstractPlugin:
     config = None
     

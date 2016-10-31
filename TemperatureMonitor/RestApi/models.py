@@ -2,10 +2,10 @@ from django.db import models
 from datetime import datetime
 from django.utils import timezone
 from itertools import repeat
+from enum import Enum
 from django.db.models.fields import BooleanField
 from django.template.defaultfilters import default
 from TemperatureMonitor.plugins.loader import AbstractPlugin
-
 
 class Plugin(models.Model):
     name = models.CharField(max_length=20, unique=True)
@@ -80,6 +80,28 @@ class Room(models.Model):
         
         return aResult
 
+    def setThermostat(self, mode, temperature=None):
+        aResult = dict()
+        aPlugin = AbstractPlugin.Get(self.plugin)
+        if aPlugin:
+            if aPlugin.hasService('setThermostat'):
+                aResult = aPlugin.setThermostat(mode, temperature)
+        else:
+            aResult['error'] = "setThermostat not implemented for plugin type %s" % self.plugin.type
+        
+        return aResult
+
+    def getThermostat(self, mode, temperature=None):
+        aResult = dict()
+        aPlugin = AbstractPlugin.Get(self.plugin)
+        if aPlugin:
+            if aPlugin.hasService('getThermostat'):
+                aResult = aPlugin.getThermostat()
+        else:
+            aResult['error'] = "getThermostat not implemented for plugin type %s" % self.plugin.type
+        
+        return aResult
+
     def getTemperature(self, simulateRoom=False):
         aJsonDoc = dict()
         # Timestamp (on plugin time zone)
@@ -93,6 +115,8 @@ class Room(models.Model):
             aJsonDoc['humidity'] = float(aResult['humidity'])
         if 'error' in aResult:
             aJsonDoc['error'] = aResult['error']
+        if 'unit' in aResult:
+            aJsonDoc['unit'] = aResult['unit']
 
         return aJsonDoc
 
