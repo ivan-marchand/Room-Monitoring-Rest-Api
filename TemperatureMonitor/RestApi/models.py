@@ -91,7 +91,7 @@ class Room(models.Model):
         
         return aResult
 
-    def getThermostat(self, mode, temperature=None):
+    def getThermostat(self):
         aResult = dict()
         aPlugin = AbstractPlugin.Get(self.plugin)
         if aPlugin:

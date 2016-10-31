@@ -123,6 +123,36 @@ def getTemperature(request, room):
         aJsonDoc.update(aRooms[0].getTemperature())
     return HttpResponse(json.dumps(aJsonDoc))
 
+def setThermostat(request, room, mode, temperature):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    aJsonDoc['room'] = room
+    # Check if room exists
+    aRooms = models.Room.objects.filter(name=room)
+    if not aRooms:
+        aJsonDoc['error'] = "Room not found"
+    else:
+        aJsonDoc.update(aRooms[0].setThermostat(mode, int(temperature)))
+    return HttpResponse(json.dumps(aJsonDoc))
+
+def getThermostat(request, room):
+    aJsonDoc = dict()
+    # Logged in ?
+    if not login(request, aJsonDoc):
+        return HttpResponse(json.dumps(aJsonDoc))
+
+    aJsonDoc['room'] = room
+    # Check if room exists
+    aRooms = models.Room.objects.filter(name=room)
+    if not aRooms:
+        aJsonDoc['error'] = "Room not found"
+    else:
+        aJsonDoc.update(aRooms[0].getThermostat())
+    return HttpResponse(json.dumps(aJsonDoc))
+
 def sendIRCommand(request, device, command):
     aJsonDoc = dict()
     # Logged in ?
@@ -275,11 +305,9 @@ def delPlugin(request, id):
 
 
 def send(request, response):
-    print "Request:", request
-    print "Response:", response
     sendTextMessage(request['context']['senderId'], response['text'])
 
-def getTemperature(request):
+def getTemperatureBot(request):
     print request
     # Check if room exists
     if 'roomName' in request['entities']:
@@ -300,7 +328,7 @@ def getTemperature(request):
 
 actions = {
     'send': send,
-    'getTemperature': getTemperature
+    'getTemperature': getTemperatureBot
 }
 
         
