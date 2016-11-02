@@ -113,6 +113,10 @@ class Room(models.Model):
             aJsonDoc['temperature'] = float(aResult['temperature'])
         if 'humidity' in aResult:
             aJsonDoc['humidity'] = float(aResult['humidity'])
+        if 'temperatureCommand' in aResult:
+            aJsonDoc['temperatureCommand'] = aResult['temperatureCommand']
+        if 'mode' in aResult:
+            aJsonDoc['mode'] = aResult['mode']
         if 'error' in aResult:
             aJsonDoc['error'] = aResult['error']
         if 'unit' in aResult:

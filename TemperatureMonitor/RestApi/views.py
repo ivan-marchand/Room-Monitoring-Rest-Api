@@ -135,7 +135,10 @@ def setThermostat(request, room, mode, temperature):
     if not aRooms:
         aJsonDoc['error'] = "Room not found"
     else:
-        aJsonDoc.update(aRooms[0].setThermostat(mode, int(temperature)))
+        if temperature:
+            aJsonDoc.update(aRooms[0].setThermostat(mode, int(temperature)))
+        else:
+            aJsonDoc.update(aRooms[0].setThermostat(mode))
     return HttpResponse(json.dumps(aJsonDoc))
 
 def getThermostat(request, room):

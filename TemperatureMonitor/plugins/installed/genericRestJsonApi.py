@@ -25,18 +25,17 @@ class GenericRestJsonApi(AbstractPlugin):
         return json.loads(content)
     
     def getTemperature(self):
-        return self.get("getTemperature/F")
+        #return self.get("getTemperature/F")
+        return self.get("getThermostat")
 
     def getThermostat(self):
         return self.get("getThermostat")
 
     def setThermostat(self, mode, temperature=None):
-        if mode.upper() == "OFF":
-            return self.get("setThermostat/OFF")
-        elif mode.upper() == "HEAT" or mode.upper() == "COOL":
+        if temperature:
             return self.get("setThermostat/%s/%i" % (mode.upper(), temperature))
         else:
-            return {"error": "Unknown mode %s" % mode}
+            return self.get("setThermostat/%s" % mode.upper())
             
 
 AbstractPlugin.Register('G', 'Generic REST Json API', GenericRestJsonApi, {

@@ -10,7 +10,7 @@ urlpatterns = patterns('',
     url(r'^api/v1/get/roomList', 'TemperatureMonitor.RestApi.views.getRoomList', name='getRoomList'),
     url(r'^api/v1/get/temperature/(?P<room>[\w\s]+)$', 'TemperatureMonitor.RestApi.views.getTemperature', name='getTemperature'),
     url(r'^api/v1/get/thermostat/(?P<room>[\w\s]+)$', 'TemperatureMonitor.RestApi.views.getThermostat', name='getThermostat'),
-    url(r'^api/v1/set/thermostat/(?P<room>[\w\s]+)/(?P<mode>\w+)/?(?P<temperature>\d+)$', 'TemperatureMonitor.RestApi.views.setThermostat', name='setThermostat'),
+    url(r'^api/v1/set/thermostat/(?P<room>[\w\s]+)/(?P<mode>\w+)/?(?P<temperature>\d*)$', 'TemperatureMonitor.RestApi.views.setThermostat', name='setThermostat'),
     url(r'^api/v1/sendIRCommand/(?P<device>\w+)/(?P<command>\w+)$', 'TemperatureMonitor.RestApi.views.sendIRCommand', name='sendIRCommand'),
     
     # Plugin
