@@ -124,6 +124,16 @@ class Room(models.Model):
 
         return aJsonDoc
 
+    def getConfig(self):
+        aResult = dict()
+        aPlugin = AbstractPlugin.Get(self.plugin)
+        if aPlugin:
+            aResult = aPlugin.getConfig()
+        else:
+            aResult['error'] = "Unknown plugin type %s" % self.plugin.type
+        
+        return aResult
+
 class Device(models.Model):
     TYPES = (
         ('A', 'A/C'),

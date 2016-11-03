@@ -37,6 +37,11 @@ class GenericRestJsonApi(AbstractPlugin):
         else:
             return self.get("setThermostat/%s" % mode.upper())
             
+    def getConfig(self):
+        aResult = dict()
+        config = self.get("getConfig")
+        aResult["type"] = config["type"]
+        return aResult
 
 AbstractPlugin.Register('G', 'Generic REST Json API', GenericRestJsonApi, {
     'host' : ("Host", "String", True),

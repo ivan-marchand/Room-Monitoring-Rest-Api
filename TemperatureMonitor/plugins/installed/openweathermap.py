@@ -40,6 +40,11 @@ class OpenWeatherMap(AbstractPlugin):
             aResult['error'] = "API Key Missing"
         return aResult
 
+    def getConfig(self):
+        aResult = dict()
+        aResult["type"] = "thermometer"
+        return aResult
+
 AbstractPlugin.Register('O', 'Open Weather Map', OpenWeatherMap, {
     'City' : ("City", "String", True),
     'appid' : ("API Key", "String", True),

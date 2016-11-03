@@ -80,7 +80,10 @@ def getRoomList(request):
 
     aRoomList = []
     for aRoom in models.Room.objects.all():
-        aRoomList.append(aRoom.name)
+        aRoomJson = dict()
+        aRoomJson["room"] = aRoom.name
+        aRoomJson.update(aRoom.getConfig())
+        aRoomList.append(aRoomJson)
     aJsonDoc["room_list"] = aRoomList
         
     return HttpResponse(json.dumps(aJsonDoc))

@@ -26,6 +26,11 @@ class Yun(AbstractPlugin):
         result = json.loads(content)
         return result and 'error' not in result
 
+    def getConfig(self):
+        aResult = dict()
+        aResult["type"] = "thermometer"
+        return aResult
+
 AbstractPlugin.Register('A', 'Arduino Yun', Yun, {
     'host' : ("Host", "String", True),
     'port' : ("Port", "Integer", True),

@@ -33,4 +33,9 @@ class SparkCore(AbstractPlugin):
         result = json.loads(content)
         return 'return_value' in result and result['return_value'] != -1
 
+    def getConfig(self):
+        aResult = dict()
+        aResult["type"] = "thermometer"
+        return aResult
+
 AbstractPlugin.Register('S', 'Spark Core', SparkCore)
